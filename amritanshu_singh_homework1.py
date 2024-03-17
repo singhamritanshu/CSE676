@@ -14,20 +14,6 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 
-"""# MNIST dataset
-
-"""
-
-train_dataset = datasets.MNIST(root='./data', train=True, transform=transforms.ToTensor(), download=True)
-test_dataset = datasets.MNIST(root='./data', train=False, transform=transforms.ToTensor())
-
-"""**Data loader**"""
-
-train_loader = DataLoader(dataset=train_dataset, batch_size=64, shuffle=True)
-test_loader = DataLoader(dataset=test_dataset, batch_size=64, shuffle=False)
-
-"""# Neural network model"""
-
 class FNN(nn.Module):
     def __init__(self):
         super(FNN, self).__init__()
@@ -44,57 +30,67 @@ class FNN(nn.Module):
         x = self.flatten(x)
         logits = self.linear_relu_stack(x)
         return logits
-model = FNN()
 
-"""# Loss and optimizer"""
-
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-
-"""# Train the model
-
-"""
-
-def train(epoch):
+def train(model, device, train_loader, optimizer, criterion):
     model.train()
-    for batch_idx, (data, target) in enumerate(train_loader):
+    train_loss = 0
+    for data, target in train_loader:
+        data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
         loss = criterion(output, target)
         loss.backward()
         optimizer.step()
+        train_loss += loss.item()
+    avg_loss = train_loss / len(train_loader)
+    return avg_loss
 
-"""
-# Testing the model"""
-
-def test():
+def test(model, device, test_loader, criterion):
     model.eval()
     test_loss = 0
     with torch.no_grad():
         for data, target in test_loader:
+            data, target = data.to(device), target.to(device)
             output = model(data)
-            test_loss += criterion(output, target).item()
-    test_loss /= len(test_loader.dataset)
-    return test_loss
+            loss = criterion(output, target)
+            test_loss += loss.item()
+    avg_loss = test_loss / len(test_loader)
+    return avg_loss
 
-"""# Main loop"""
+def main():
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-epochs = 10
-train_losses = []
-test_losses = []
+    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+    train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+    test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
 
-for epoch in range(1, epochs + 1):
-    train(epoch)
-    train_losses.append(test())  # Append test loss after training as proxy for training loss
-    test_losses.append(test())
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 
-"""# Plotting"""
+    model = FNN().to(device)
+    optimizer = optim.Adam(model.parameters())
+    criterion = nn.CrossEntropyLoss()
 
-plt.figure(figsize=(10, 6))
-plt.plot(train_losses, label='Training Loss')
-plt.plot(test_losses, label='Test Loss')
-plt.xlabel('Number of Training Iterations')
-plt.ylabel('Loss')
-plt.title('Training and Test Loss vs. Training Iterations')
-plt.legend()
-plt.show()
+    epochs = 10
+    training_losses = []
+    test_losses = []
+
+    for epoch in range(epochs):
+        train_loss = train(model, device, train_loader, optimizer, criterion)
+        test_loss = test(model, device, test_loader, criterion)
+        training_losses.append(train_loss)
+        test_losses.append(test_loss)
+        print(f"Epoch {epoch+1}, Train Loss: {train_loss:.4f}, Test Loss: {test_loss:.4f}")
+
+    # Plotting
+    plt.figure(figsize=(10, 5))
+    plt.plot(training_losses, label='Training Loss')
+    plt.plot(test_losses, label='Test Loss')
+    plt.title('Loss vs. Epochs')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.show()
+
+if __name__ == "__main__":
+    main()
