@@ -34,7 +34,7 @@ Or you can use the colab to run since everything is installed. Download the file
 To run the MNIST classification script, execute the following command in your terminal:
 
 ```
-python mnist_classification.py
+python amritanshu_singh_homework1.py
 ```
 
 This command will start the training process of the neural network on the MNIST dataset. After training, it will display a plot showing the training and test losses over the training iterations.
